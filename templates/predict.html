@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+{% block title %}Predict Income — ML Metrics Lab{% endblock %}
+
+{% block extra_head %}
+<style>
+  .form-section {
+    margin-bottom: 1.5rem;
+  }
+  .form-section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--grey);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--light-grey);
+  }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
+  @media(max-width:640px) { .form-grid { grid-template-columns: 1fr; } }
+
+  .form-group { display: flex; flex-direction: column; gap: 0.3rem; }
+  label {
+    font-size: 0.72rem; font-weight: 500;
+    color: var(--dark-grey);
+  }
+  input, select {
+    background: var(--white);
+    border: 1px solid var(--mid-grey);
+    color: var(--near-black);
+    border-radius: var(--radius);
+    padding: 0.55rem 0.75rem;
+    font-family: 'Inter', sans-serif; font-size: 0.875rem;
+    transition: border-color 0.15s; outline: none;
+    width: 100%;
+  }
+  input:focus, select:focus { border-color: var(--black); }
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 0.75rem center;
+    padding-right: 2rem;
+  }
+
+  /* MODEL SELECTOR */
+  .model-selector {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.5rem;
+    margin-bottom: 0.25rem;
+  }
+  .model-btn {
+    padding: 0.5rem 0.75rem;
+    background: var(--white); border: 1px solid var(--mid-grey);
+    border-radius: var(--radius); cursor: pointer;
+    font-family: 'Inter', sans-serif; font-size: 0.82rem; font-weight: 400;
+    color: var(--dark-grey); text-align: center; transition: all 0.15s;
+  }
+  .model-btn:hover { border-color: var(--near-black); color: var(--near-black); }
+  .model-btn.selected {
+    background: var(--black); border-color: var(--black);
+    color: var(--white); font-weight: 500;
+  }
+
+  /* RESULT */
+  .result-block {
+    border: 1px solid var(--light-grey);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .result-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--grey); margin-bottom: 0.5rem;
+  }
+  .result-verdict {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 2.2rem; font-weight: 600;
+    color: var(--black); line-height: 1; margin-bottom: 0.75rem;
+  }
+  .result-conf {
+    font-size: 0.85rem; color: var(--dark-grey); margin-bottom: 0.5rem;
+  }
+  .result-conf strong { color: var(--black); font-weight: 600; }
+  .prob-labels {
+    display: flex; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem; color: var(--grey);
+    margin-bottom: 0.3rem;
+  }
+  .prob-bar { height: 5px; border-radius: 999px; background: var(--light-grey); overflow: hidden; margin-bottom: 1.25rem; }
+  .prob-fill { height: 100%; border-radius: 999px; background: var(--black); transition: width 0.6s ease; }
+
+  .classifier-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.6rem 0; border-bottom: 1px solid var(--light-grey); font-size: 0.85rem;
+  }
+  .classifier-row:last-child { border-bottom: none; }
+  .classifier-name { color: var(--dark-grey); }
+  .classifier-name.selected { color: var(--black); font-weight: 600; }
+  .verdict-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem; font-weight: 500;
+    padding: 0.15rem 0.5rem; border-radius: 2px;
+    border: 1px solid var(--near-black);
+  }
+  .verdict-tag.high { background: var(--black); color: var(--white); }
+  .verdict-tag.low  { background: var(--white); color: var(--near-black); }
+  .prob-val { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--grey); width: 3rem; text-align: right; }
+
+  .consensus {
+    margin-top: 1rem; padding: 0.75rem 1rem;
+    background: var(--off-white); border-radius: var(--radius);
+    font-size: 0.83rem; color: var(--dark-grey);
+    border: 1px solid var(--light-grey);
+  }
+  .consensus strong { color: var(--black); }
+
+  .idle-state {
+    text-align: center; padding: 3rem 2rem;
+    border: 1px dashed var(--mid-grey);
+    border-radius: var(--radius);
+    margin-bottom: 1.25rem;
+  }
+  .idle-state h3 { margin-bottom: 0.4rem; }
+  .idle-state p  { font-size: 0.85rem; }
+
+  .metric-guide { border: 1px solid var(--light-grey); border-radius: var(--radius); overflow: hidden; }
+  .guide-row {
+    display: flex; gap: 0; padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--light-grey); font-size: 0.83rem;
+    align-items: flex-start;
+  }
+  .guide-row:last-child { border-bottom: none; }
+  .guide-key { font-weight: 600; min-width: 90px; font-size: 0.82rem; flex-shrink: 0; }
+  .guide-val { color: var(--dark-grey); }
+
+  .selected-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem; padding: 0.1rem 0.4rem;
+    border: 1px solid var(--mid-grey); border-radius: 2px;
+    color: var(--grey); margin-left: 0.5rem; vertical-align: middle;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="label">Live Inference</div>
+  <h1>Income Prediction</h1>
+  <p>Enter demographic details and select a classifier to predict whether income is above or below $50K per year.</p>
+</div>
+
+<div class="grid-2" style="align-items:start; gap:2rem;">
+
+<!-- FORM -->
+<div>
+  <form method="POST" action="/predict">
+
+    <div class="form-section">
+      <div class="form-section-label">Select Classifier</div>
+      <div class="model-selector" id="model-btns">
+        {% for m in options.models %}
+        <div class="model-btn {% if form_data.get('model_choice', 'Random Forest') == m %}selected{% endif %}"
+             onclick="selectModel('{{ m }}', this)">{{ m }}</div>
+        {% endfor %}
+      </div>
+    </div>
+    <input type="hidden" name="model_choice" id="model_choice_input"
+           value="{{ form_data.get('model_choice', 'Random Forest') }}">
+
+    <div class="form-section">
+      <div class="form-section-label">Demographic Details</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="inp-age">Age</label>
+          <input type="number" name="age" id="inp-age" min="17" max="90" required value="{{ form_data.get('age', 35) }}">
+        </div>
+        <div class="form-group">
+          <label for="inp-hours">Hours Per Week</label>
+          <input type="number" name="hours_per_week" id="inp-hours" min="1" max="99" required value="{{ form_data.get('hours_per_week', 40) }}">
+        </div>
+        <div class="form-group">
+          <label for="inp-education">Education Level</label>
+          <select name="education" id="inp-education">
+            {% for opt in options.education %}
+            <option {% if form_data.get('education', 'Bachelors') == opt %}selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="inp-edu-num">Education Num (1&ndash;16)</label>
+          <input type="number" name="education_num" id="inp-edu-num" min="1" max="16" required value="{{ form_data.get('education_num', 13) }}">
+        </div>
+        <div class="form-group">
+          <label for="inp-workclass">Workclass</label>
+          <select name="workclass" id="inp-workclass">
+            {% for opt in options.workclass %}
+            <option {% if form_data.get('workclass', 'Private') == opt %}selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="inp-marital">Marital Status</label>
+          <select name="marital_status" id="inp-marital">
+            {% for opt in options.marital_status %}
+            <option {% if form_data.get('marital_status', 'Never-married') == opt %}selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="inp-occupation">Occupation</label>
+          <select name="occupation" id="inp-occupation">
+            {% for opt in options.occupation %}
+            <option {% if form_data.get('occupation', 'Exec-managerial') == opt %}selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="inp-relationship">Relationship</label>
+          <select name="relationship" id="inp-relationship">
+            {% for opt in options.relationship %}
+            <option {% if form_data.get('relationship', 'Not-in-family') == opt %}selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="inp-race">Race</label>
+          <select name="race" id="inp-race">
+            {% for opt in options.race %}
+            <option {% if form_data.get('race', 'White') == opt %}selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="inp-sex">Sex</label>
+          <select name="sex" id="inp-sex">
+            {% for opt in options.sex %}
+            <option {% if form_data.get('sex', 'Male') == opt %}selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="inp-cap-gain">Capital Gain ($)</label>
+          <input type="number" name="capital_gain" id="inp-cap-gain" min="0" required value="{{ form_data.get('capital_gain', 0) }}">
+        </div>
+        <div class="form-group">
+          <label for="inp-cap-loss">Capital Loss ($)</label>
+          <input type="number" name="capital_loss" id="inp-cap-loss" min="0" required value="{{ form_data.get('capital_loss', 0) }}">
+        </div>
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label for="inp-country">Native Country</label>
+          <select name="native_country" id="inp-country">
+            {% for opt in options.native_country %}
+            <option {% if form_data.get('native_country', 'United-States') == opt %}selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" id="predict-btn" class="btn btn-primary" style="width:100%; justify-content:center; padding:0.7rem;">
+      Run Prediction
+    </button>
+  </form>
+</div>
+
+<!-- RESULT PANEL -->
+<div>
+  {% if result %}
+    {% if result.error %}
+    <div class="result-block" style="border-color:var(--near-black);">
+      <div class="result-meta">Prediction Error</div>
+      <p class="mono" style="font-size:0.82rem; color:var(--dark-grey); margin-top:0.25rem;">{{ result.error }}</p>
+    </div>
+    {% else %}
+
+    <div class="result-block">
+      <div class="result-meta">{{ result.chosen_model }} &mdash; Prediction Result</div>
+      <div class="result-verdict">{{ result.prediction }}</div>
+      <div class="result-conf">
+        Confidence: <strong>{{ result.prob_high if result.prediction == '>50K' else result.prob_low }}%</strong>
+      </div>
+      <div class="prob-labels">
+        <span>P(&gt;50K) = {{ result.prob_high }}%</span>
+        <span>P(&le;50K) = {{ result.prob_low }}%</span>
+      </div>
+      <div class="prob-bar">
+        <div class="prob-fill" data-width="{{ result.prob_high }}"></div>
+      </div>
+      <div style="font-size:0.8rem; color:var(--grey);">
+        Income is predicted to be <strong style="color:var(--black);">{{ result.prediction }}</strong> per year.
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:0.75rem;">All Classifiers</h3>
+      {% for mname, mpred in result.all_preds.items() %}
+      <div class="classifier-row">
+        <span class="classifier-name {% if mname == result.chosen_model %}selected{% endif %}">
+          {{ mname }}
+          {% if mname == result.chosen_model %}<span class="selected-tag">selected</span>{% endif %}
+        </span>
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+          <div class="progress-wrap" style="width:72px;">
+            <div class="progress-bar" data-width="{{ mpred.prob_high }}"></div>
+          </div>
+          <span class="verdict-tag {% if mpred.prediction == '>50K' %}high{% else %}low{% endif %}">
+            {{ mpred.prediction }}
+          </span>
+          <span class="prob-val">{{ mpred.prob_high }}%</span>
+        </div>
+      </div>
+      {% endfor %}
+
+      {% set agree = result.all_preds.values() | selectattr('prediction', 'eq', result.prediction) | list | length %}
+      <div class="consensus">
+        <strong>{{ agree }} of {{ result.all_preds | length }}</strong> classifiers agree on
+        <strong>{{ result.prediction }}</strong>.
+      </div>
+    </div>
+
+    {% endif %}
+  {% else %}
+
+  <div class="idle-state">
+    <h3>Awaiting Input</h3>
+    <p>Fill in the form on the left and click <strong>Run Prediction</strong> to see results from all 5 classifiers.</p>
+  </div>
+
+  <div class="metric-guide">
+    <div style="padding:0.75rem 1rem; border-bottom:1px solid var(--light-grey); background:var(--off-white);">
+      <h3 style="margin:0; font-size:0.85rem;">Metric Reference</h3>
+    </div>
+    <div class="guide-row">
+      <span class="guide-key">Accuracy</span>
+      <span class="guide-val">Fraction of correct predictions overall.</span>
+    </div>
+    <div class="guide-row">
+      <span class="guide-key">F1-Score</span>
+      <span class="guide-val">Harmonic mean of precision and recall. Useful for imbalanced classes.</span>
+    </div>
+    <div class="guide-row">
+      <span class="guide-key">ROC-AUC</span>
+      <span class="guide-val">Ability to rank positives above negatives across all thresholds.</span>
+    </div>
+    <div class="guide-row">
+      <span class="guide-key">PR-AUC</span>
+      <span class="guide-val">Precision-recall tradeoff. Superior metric for imbalanced classification.</span>
+    </div>
+  </div>
+
+  {% endif %}
+</div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function selectModel(name, el) {
+  document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('model_choice_input').value = name;
+}
+
+// Apply data-width attributes as CSS widths (avoids inline Jinja2 style linter errors)
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[data-width]').forEach(function (el) {
+    el.style.width = el.getAttribute('data-width') + '%';
+  });
+});
+</script>
+{% endblock %}

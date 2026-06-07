@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Plots Gallery — ML Metrics Lab{% endblock %}
+
+{% block extra_head %}
+<style>
+  .plot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(460px, 1fr));
+    gap: 1.25rem;
+  }
+  @media(max-width:600px) { .plot-grid { grid-template-columns: 1fr; } }
+
+  .plot-card {
+    border: 1px solid var(--light-grey);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--white);
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .plot-card:hover {
+    border-color: var(--near-black);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  }
+  .plot-img-wrap { position: relative; overflow: hidden; background: var(--off-white); }
+  .plot-card img { width: 100%; display: block; transition: opacity 0.2s; }
+  .plot-card:hover img { opacity: 0.92; }
+
+  .plot-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.2s;
+    background: rgba(0,0,0,0.04);
+  }
+  .plot-card:hover .plot-overlay { opacity: 1; }
+  .expand-label {
+    background: var(--black); color: var(--white);
+    padding: 0.4rem 0.9rem; border-radius: var(--radius);
+    font-size: 0.78rem; font-weight: 500;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .plot-caption {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--light-grey);
+  }
+  .plot-caption-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem; font-weight: 500;
+    color: var(--near-black); letter-spacing: 0.04em;
+    text-transform: uppercase; margin-bottom: 0.15rem;
+  }
+  .plot-caption-desc { font-size: 0.75rem; color: var(--grey); }
+
+  /* LIGHTBOX */
+  .lightbox {
+    display: none; position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.88);
+    align-items: center; justify-content: center;
+    padding: 2rem;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox-inner { position: relative; }
+  .lightbox img {
+    max-width: 88vw; max-height: 86vh;
+    border-radius: var(--radius);
+    display: block;
+    box-shadow: 0 8px 48px rgba(0,0,0,0.5);
+  }
+  .lightbox-close {
+    position: absolute; top: -2.75rem; right: 0;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    color: var(--white); border-radius: var(--radius);
+    padding: 0.35rem 0.85rem; cursor: pointer;
+    font-family: 'Inter', sans-serif; font-size: 0.78rem; font-weight: 400;
+    transition: background 0.15s;
+  }
+  .lightbox-close:hover { background: rgba(255,255,255,0.18); }
+
+  .empty-state {
+    text-align: center; padding: 4rem 2rem;
+    border: 1px dashed var(--mid-grey);
+    border-radius: var(--radius); color: var(--dark-grey);
+  }
+  .empty-state h3 { margin-bottom: 0.5rem; }
+  .empty-state p  { font-size: 0.875rem; }
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--off-white); border: 1px solid var(--light-grey);
+    padding: 0.15rem 0.45rem; border-radius: 3px; font-size: 0.82rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="label">Visualizations</div>
+  <h1>Plots Gallery</h1>
+  <p>Click any plot to enlarge. All figures were generated from the trained classifiers evaluated on the held-out test set.</p>
+</div>
+
+{% set plot_meta = {
+  'metrics_comparison.png': 'All 4 metrics side-by-side for all 5 classifiers',
+  'roc_curves.png':         'ROC curves with AUC scores — threshold-independent evaluation',
+  'pr_curves.png':          'Precision-Recall curves — suited for imbalanced data',
+  'confusion_matrices.png': 'Confusion matrices showing TP, TN, FP, FN for each classifier',
+  'feature_importance.png': 'Top-10 features ranked by Random Forest importance score',
+  'metrics_heatmap.png':    'Heatmap overview of all metrics across all models',
+} %}
+
+{% if plot_files %}
+<div class="plot-grid">
+  {% for fname in plot_files | sort %}
+  <div class="plot-card" id="plot-{{ loop.index }}" onclick="openLightbox('/plots/{{ fname }}')">
+    <div class="plot-img-wrap">
+      <img src="/plots/{{ fname }}" alt="{{ fname }}" loading="lazy"/>
+      <div class="plot-overlay">
+        <span class="expand-label">Enlarge</span>
+      </div>
+    </div>
+    <div class="plot-caption">
+      <div class="plot-caption-title">{{ fname.replace('_', ' ').replace('.png','') }}</div>
+      {% if fname in plot_meta %}
+      <div class="plot-caption-desc">{{ plot_meta[fname] }}</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-state">
+  <h3>No Plots Found</h3>
+  <p>Run <code>train_models.py</code> first to generate the plots, then reload this page.</p>
+</div>
+{% endif %}
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+  <div class="lightbox-inner">
+    <button class="lightbox-close" onclick="document.getElementById('lightbox').classList.remove('open'); document.body.style.overflow='';">Close</button>
+    <img id="lightbox-img" src="" alt="Enlarged plot"/>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox(e) {
+  if (e.target === document.getElementById('lightbox')) {
+    document.getElementById('lightbox').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.getElementById('lightbox').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+});
+</script>
+{% endblock %}

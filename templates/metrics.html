@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+{% block title %}Metrics Comparison — ML Metrics Lab{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  .chart-card {
+    border: 1px solid var(--light-grey);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    background: var(--white);
+  }
+  .metric-toggle-bar {
+    display: flex; gap: 0.5rem; flex-wrap: wrap;
+  }
+  .metric-toggle {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 2px; border: 1px solid var(--mid-grey);
+    font-size: 0.78rem; font-weight: 400; cursor: pointer;
+    transition: all 0.15s; color: var(--dark-grey);
+    background: var(--white);
+    font-family: 'Inter', sans-serif;
+  }
+  .metric-toggle.active {
+    background: var(--black); border-color: var(--black); color: var(--white);
+  }
+  .metric-toggle:not(.active):hover { border-color: var(--near-black); color: var(--near-black); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  .rank-block { margin-bottom: 1.5rem; }
+  .rank-block:last-child { margin-bottom: 0; }
+  .rank-metric-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--grey); margin-bottom: 0.6rem;
+    padding-bottom: 0.4rem; border-bottom: 1px solid var(--light-grey);
+  }
+  .rank-row {
+    display: flex; align-items: center; gap: 0.75rem;
+    margin-bottom: 0.35rem; font-size: 0.83rem;
+  }
+  .rank-num { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--grey); width: 1.2rem; text-align: right; flex-shrink: 0; }
+  .rank-name { flex: 0 0 130px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--dark-grey); }
+  .rank-name.top { color: var(--black); font-weight: 600; }
+  .rank-bar-wrap { flex: 1; height: 4px; background: var(--light-grey); border-radius: 999px; overflow: hidden; }
+  .rank-bar-fill { height: 100%; background: var(--near-black); border-radius: 999px; }
+  .rank-score { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--grey); width: 4.5rem; text-align: right; }
+  .rank-score.top { color: var(--black); font-weight: 500; }
+
+  .insight-block {
+    border: 1px solid var(--light-grey);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    border-left: 3px solid var(--near-black);
+  }
+  .insight-block:last-child { margin-bottom: 0; }
+  .insight-block h4 { font-size: 0.875rem; font-weight: 600; margin-bottom: 0.35rem; }
+  .insight-block p  { font-size: 0.82rem; color: var(--dark-grey); line-height: 1.65; }
+
+  section { margin-bottom: 2rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="label">Analysis</div>
+  <h1>Metrics Comparison</h1>
+  <p>How does the ranking of classifiers change when switching evaluation metrics?</p>
+</div>
+
+<!-- BAR CHART -->
+<section>
+  <div class="chart-card">
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem;">
+      <h3 style="margin:0;">All Metrics at a Glance</h3>
+      <div class="metric-toggle-bar" id="metric-pills">
+        <button class="metric-toggle active" onclick="toggleMetric('Accuracy', this)"><span class="dot" style="background:#1a1a1a"></span>Accuracy</button>
+        <button class="metric-toggle active" onclick="toggleMetric('F1-Score', this)"><span class="dot" style="background:#555"></span>F1-Score</button>
+        <button class="metric-toggle active" onclick="toggleMetric('ROC-AUC', this)"><span class="dot" style="background:#888"></span>ROC-AUC</button>
+        <button class="metric-toggle active" onclick="toggleMetric('PR-AUC', this)"><span class="dot"  style="background:#bbb"></span>PR-AUC</button>
+      </div>
+    </div>
+    <canvas id="barChart" height="90"></canvas>
+  </div>
+</section>
+
+<!-- RADAR + RANKINGS -->
+<section>
+  <div class="grid-2" style="align-items:start;">
+    <div class="chart-card">
+      <h3 style="margin-bottom:1.25rem;">Radar Profile</h3>
+      <canvas id="radarChart" height="260"></canvas>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:1.25rem;">Rankings by Metric</h3>
+      {% for metric_key in ['Accuracy', 'F1-Score', 'ROC-AUC', 'PR-AUC'] %}
+        <div class="rank-block">
+          <div class="rank-metric-label">{{ metric_key }}</div>
+          {% set sorted_models = metrics.items()|sort(attribute='1.' + metric_key, reverse=true) %}
+          {% for mname, m in sorted_models %}
+          <div class="rank-row">
+            <span class="rank-num">{{ loop.index }}</span>
+            <span class="rank-name {% if loop.index == 1 %}top{% endif %}">{{ mname }}</span>
+            <div class="rank-bar-wrap">
+              <div class="rank-bar-fill" data-width="{{ ((m[metric_key] - 0.5) * 200)|round|int }}"></div>
+            </div>
+            <span class="rank-score {% if loop.index == 1 %}top{% endif %}">{{ "%.4f"|format(m[metric_key]) }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- FULL TABLE -->
+<section>
+  <div class="card">
+    <h3 style="margin-bottom:1.25rem;">Full Metrics Table</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>Accuracy</th>
+          <th>F1-Score</th>
+          <th>ROC-AUC</th>
+          <th>PR-AUC</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for mname, m in metrics.items() %}
+        <tr>
+          <td style="font-weight:500;">{{ mname }}</td>
+          {% for mk in ['Accuracy', 'F1-Score', 'ROC-AUC', 'PR-AUC'] %}
+          <td>
+            <div style="display:flex; align-items:center; gap:0.6rem;">
+              <span class="mono" style="font-size:0.82rem;">{{ "%.4f"|format(m[mk]) }}</span>
+              <div class="progress-wrap" style="flex:1; min-width:50px;">
+                <div class="progress-bar" data-width="{{ ((m[mk] - 0.5) * 200)|round|int }}"></div>
+              </div>
+            </div>
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- KEY INSIGHTS -->
+<section>
+  <h2>Key Insights</h2>
+  <div class="grid-2">
+    <div>
+      <div class="insight-block">
+        <h4>Accuracy vs. F1-Score</h4>
+        <p>On imbalanced datasets, accuracy can be misleading. A model that always predicts the majority class achieves high accuracy. F1-Score balances precision and recall, revealing true classifier performance.</p>
+      </div>
+      <div class="insight-block">
+        <h4>ROC-AUC: Threshold Independence</h4>
+        <p>ROC-AUC measures a model's discriminatory ability across all classification thresholds. It is useful for comparing classifiers, but can be optimistic on imbalanced data as it incorporates true negatives.</p>
+      </div>
+    </div>
+    <div>
+      <div class="insight-block">
+        <h4>PR-AUC: Suited for Imbalanced Data</h4>
+        <p>Precision-Recall AUC focuses solely on the positive class. For imbalanced datasets such as income prediction, PR-AUC provides a more informative evaluation than ROC-AUC.</p>
+      </div>
+      <div class="insight-block">
+        <h4>Metric Choice Alters Rankings</h4>
+        <p>Classifier rankings change depending on the chosen metric. This demonstrates why a single metric is insufficient. A comprehensive evaluation requires all four metrics examined together.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script type="application/json" id="data-model-names">{{ model_names | tojson }}</script>
+<script type="application/json" id="data-metrics">{{ metrics | tojson }}</script>
+<script>
+const modelNames  = JSON.parse(document.getElementById('data-model-names').textContent);
+const metricsData = JSON.parse(document.getElementById('data-metrics').textContent);
+
+
+// Greyscale palette for bars
+const BAR_COLORS = {
+  'Accuracy': { bg: 'rgba(26,26,26,0.75)',   border: '#1a1a1a' },
+  'F1-Score': { bg: 'rgba(85,85,85,0.75)',   border: '#555555' },
+  'ROC-AUC' : { bg: 'rgba(136,136,136,0.75)',border: '#888888' },
+  'PR-AUC'  : { bg: 'rgba(187,187,187,0.75)',border: '#bbbbbb' },
+};
+const MODEL_STROKES = ['#000000','#444444','#777777','#aaaaaa','#cccccc'];
+
+Chart.defaults.font.family = 'Inter';
+Chart.defaults.color = '#999999';
+
+// BAR CHART
+const barCtx = document.getElementById('barChart').getContext('2d');
+const barDatasets = Object.keys(BAR_COLORS).map(metric => ({
+  label: metric,
+  data: modelNames.map(m => metricsData[m][metric]),
+  backgroundColor: BAR_COLORS[metric].bg,
+  borderColor: BAR_COLORS[metric].border,
+  borderWidth: 1,
+  borderRadius: 3,
+  borderSkipped: false,
+}));
+
+const barChart = new Chart(barCtx, {
+  type: 'bar',
+  data: { labels: modelNames, datasets: barDatasets },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { labels: { color: '#444', font: { size: 12 }, usePointStyle: true, pointStyle: 'rect' } },
+      tooltip: {
+        backgroundColor: '#ffffff', borderColor: '#cccccc', borderWidth: 1,
+        titleColor: '#1a1a1a', bodyColor: '#555555',
+        callbacks: { label: ctx => `  ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(4)}` },
+      },
+    },
+    scales: {
+      x: { ticks: { color: '#888' }, grid: { color: '#f0f0f0' } },
+      y: { min: 0.5, max: 1.0, ticks: { color: '#888' }, grid: { color: '#f0f0f0' } },
+    },
+  }
+});
+
+function toggleMetric(metric, btn) {
+  btn.classList.toggle('active');
+  const ds = barChart.data.datasets.find(d => d.label === metric);
+  ds.hidden = !ds.hidden;
+  barChart.update();
+}
+
+// RADAR
+const radarCtx = document.getElementById('radarChart').getContext('2d');
+new Chart(radarCtx, {
+  type: 'radar',
+  data: {
+    labels: ['Accuracy', 'F1-Score', 'ROC-AUC', 'PR-AUC'],
+    datasets: modelNames.map((m, i) => ({
+      label: m,
+      data: ['Accuracy','F1-Score','ROC-AUC','PR-AUC'].map(k => metricsData[m][k]),
+      borderColor: MODEL_STROKES[i],
+      backgroundColor: MODEL_STROKES[i].replace('#','rgba(').replace(/(..)(..)(..)/, (_, r,g,b) =>
+        `${parseInt(r,16)},${parseInt(g,16)},${parseInt(b,16)}`) + ',0.06)',
+      pointBackgroundColor: MODEL_STROKES[i],
+      pointRadius: 3,
+      borderWidth: 1.5,
+    }))
+  },
+  options: {
+    responsive: true,
+    scales: {
+      r: {
+        min: 0.5, max: 1.0,
+        ticks: { color: '#999', backdropColor: 'transparent', stepSize: 0.1, font: { size: 10, family: 'JetBrains Mono' } },
+        grid: { color: '#ebebeb' },
+        angleLines: { color: '#ebebeb' },
+        pointLabels: { color: '#444', font: { size: 11 } },
+      }
+    },
+    plugins: {
+      legend: { labels: { color: '#444', font: { size: 11 }, usePointStyle: true, pointStyle: 'circle' } },
+      tooltip: {
+        backgroundColor: '#fff', borderColor: '#ccc', borderWidth: 1,
+        titleColor: '#1a1a1a', bodyColor: '#555',
+      }
+    }
+  }
+});
+
+// Apply data-width attributes as CSS widths (avoids inline Jinja2 style linter errors)
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('[data-width]').forEach(function (el) {
+    el.style.width = el.getAttribute('data-width') + '%';
+  });
+});
+</script>
+{% endblock %}

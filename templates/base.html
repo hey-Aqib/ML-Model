@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="Project B6 — Comparative Study of ML Evaluation Metrics on UCI Adult Income Dataset"/>
+  <title>{% block title %}ML Metrics Lab{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --white:      #ffffff;
+      --off-white:  #f7f7f7;
+      --light-grey: #ebebeb;
+      --mid-grey:   #cccccc;
+      --grey:       #999999;
+      --dark-grey:  #444444;
+      --near-black: #1a1a1a;
+      --black:      #000000;
+      --radius:     4px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--white);
+      color: var(--near-black);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--black);
+      border-bottom: 1px solid var(--near-black);
+    }
+    .nav-inner {
+      max-width: 1200px; margin: auto;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 52px; padding: 0 2rem;
+    }
+    .nav-logo {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem; font-weight: 500;
+      color: var(--white);
+      text-decoration: none;
+      letter-spacing: 0.05em;
+    }
+    nav ul { list-style: none; display: flex; gap: 0; }
+    nav a {
+      display: block; padding: 0.4rem 0.9rem;
+      color: var(--grey); text-decoration: none;
+      font-size: 0.82rem; font-weight: 400;
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    nav a:hover { color: var(--white); }
+    nav a.active { color: var(--white); border-bottom-color: var(--white); }
+
+    /* ── MAIN ── */
+    main {
+      max-width: 1200px; margin: auto;
+      padding: 2.5rem 2rem 4rem;
+    }
+
+    /* ── TYPOGRAPHY ── */
+    h1 { font-size: 1.9rem; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+    h2 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 1rem; }
+    h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; }
+    h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.35rem; }
+    p  { color: var(--dark-grey); }
+
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .muted { color: var(--grey); }
+    .label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem; font-weight: 500;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--grey);
+    }
+
+    /* ── PAGE HEADER ── */
+    .page-header {
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+      border-bottom: 2px solid var(--black);
+    }
+    .page-header p { margin-top: 0.35rem; font-size: 0.9rem; }
+
+    /* ── CARDS ── */
+    .card {
+      background: var(--white);
+      border: 1px solid var(--light-grey);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+    }
+
+    /* ── TABLE ── */
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem; font-weight: 500;
+      color: var(--grey); text-transform: uppercase; letter-spacing: 0.08em;
+      text-align: left; padding: 0.6rem 1rem;
+      border-bottom: 2px solid var(--near-black);
+    }
+    td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--light-grey); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--off-white); }
+
+    /* ── BADGE ── */
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      border-radius: 2px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem; font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      border: 1px solid var(--near-black);
+      background: var(--near-black);
+      color: var(--white);
+    }
+    .badge-outline {
+      background: transparent;
+      color: var(--near-black);
+    }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.55rem 1.25rem;
+      border-radius: var(--radius); cursor: pointer;
+      font-family: 'Inter', sans-serif; font-weight: 500; font-size: 0.875rem;
+      transition: all 0.15s; text-decoration: none; border: 1px solid transparent;
+    }
+    .btn-primary {
+      background: var(--black); color: var(--white); border-color: var(--black);
+    }
+    .btn-primary:hover { background: var(--near-black); }
+    .btn-outline {
+      background: var(--white); color: var(--near-black); border-color: var(--near-black);
+    }
+    .btn-outline:hover { background: var(--off-white); }
+
+    /* ── PROGRESS BAR ── */
+    .progress-wrap { background: var(--light-grey); border-radius: 999px; height: 4px; overflow: hidden; }
+    .progress-bar  { height: 100%; border-radius: 999px; background: var(--near-black); transition: width 0.5s ease; }
+
+    /* ── GRID ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.5rem; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 1.25rem; }
+    @media (max-width: 900px) { .grid-2,.grid-3 { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) { .grid-4 { grid-template-columns: 1fr 1fr; } }
+
+    /* ── DIVIDER ── */
+    .divider { border: none; border-top: 1px solid var(--light-grey); margin: 2rem 0; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--light-grey);
+      text-align: center; padding: 1.25rem 2rem;
+      font-size: 0.75rem; color: var(--grey);
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0.03em;
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--off-white); }
+    ::-webkit-scrollbar-thumb { background: var(--mid-grey); border-radius: 3px; }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a class="nav-logo" href="/">ML METRICS LAB</a>
+    <ul>
+      <li><a href="/"        class="{% if request.endpoint == 'index' %}active{% endif %}">Dashboard</a></li>
+      <li><a href="/metrics" class="{% if request.endpoint == 'metrics_page' %}active{% endif %}">Metrics</a></li>
+      <li><a href="/plots"   class="{% if request.endpoint == 'plots_page' %}active{% endif %}">Plots</a></li>
+      <li><a href="/predict" class="{% if request.endpoint == 'predict' %}active{% endif %}">Predict</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+<footer>
+  Project B6 &nbsp;&middot;&nbsp; UCI Adult Income Dataset &nbsp;&middot;&nbsp; Comparative Study of Evaluation Metrics
+</footer>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

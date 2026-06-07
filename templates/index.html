@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — ML Metrics Lab{% endblock %}
+
+{% block extra_head %}
+<style>
+  .hero {
+    padding: 3rem 0 2.5rem;
+    border-bottom: 1px solid var(--light-grey);
+    margin-bottom: 2.5rem;
+  }
+  .hero .sub { font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; color: var(--grey); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
+  .hero h1 { font-size: 2.2rem; margin-bottom: 0.75rem; }
+  .hero p  { font-size: 0.95rem; color: var(--dark-grey); max-width: 600px; margin-bottom: 1.75rem; }
+
+  .stat-card {
+    border: 1px solid var(--light-grey);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    background: var(--white);
+  }
+  .stat-card:hover { border-color: var(--near-black); }
+  .stat-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.6rem; font-weight: 500;
+    color: var(--black);
+    margin: 0.3rem 0 0.15rem;
+  }
+
+  .winner-row {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 1.1rem 1.5rem;
+    border: 2px solid var(--black);
+    border-radius: var(--radius);
+    margin-bottom: 2rem;
+    background: var(--black);
+    color: var(--white);
+  }
+  .winner-row .label { color: var(--grey); }
+  .winner-name { font-size: 1.15rem; font-weight: 700; margin: 0.15rem 0; }
+  .winner-score { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--mid-grey); }
+  .winner-score em { font-style: normal; color: var(--white); font-weight: 600; }
+  .winner-tag {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem; font-weight: 500;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 0.3rem 0.7rem;
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+
+  .pipeline-step {
+    display: flex; align-items: flex-start; gap: 1rem;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--light-grey);
+  }
+  .pipeline-step:last-child { border-bottom: none; }
+  .step-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem; font-weight: 500;
+    color: var(--grey);
+    flex-shrink: 0; margin-top: 0.15rem; min-width: 1.5rem;
+  }
+  .step-title { font-weight: 600; font-size: 0.875rem; margin-bottom: 0.1rem; }
+  .step-desc  { font-size: 0.8rem; color: var(--dark-grey); }
+
+  .quick-link {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--light-grey);
+    border-radius: var(--radius);
+    text-decoration: none; color: var(--near-black);
+    transition: border-color 0.15s, background 0.15s;
+    gap: 0.75rem;
+  }
+  .quick-link:hover { border-color: var(--near-black); background: var(--off-white); }
+  .quick-link-title { font-weight: 600; font-size: 0.875rem; margin-bottom: 0.1rem; }
+  .quick-link-desc  { font-size: 0.78rem; color: var(--grey); }
+  .quick-link-arrow { color: var(--grey); font-size: 1rem; flex-shrink: 0; transition: transform 0.15s; }
+  .quick-link:hover .quick-link-arrow { transform: translateX(3px); color: var(--black); }
+
+  section { margin-bottom: 2.5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- HERO -->
+<div class="hero">
+  <div class="sub">Project B6 &middot; Evaluation Metrics Study</div>
+  <h1>Adult Income Classifier Benchmark</h1>
+  <p>Five machine learning classifiers trained and evaluated on the UCI Adult Income dataset. A comparative study across Accuracy, F1-Score, ROC-AUC, and PR-AUC.</p>
+  <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+    <a href="/metrics" class="btn btn-primary">View Metrics</a>
+    <a href="/predict" class="btn btn-outline">Try Prediction</a>
+  </div>
+</div>
+
+<!-- BEST MODEL -->
+{% set best_model = namespace(name='', roc=0) %}
+{% for mname, m in metrics.items() %}
+  {% if m['ROC-AUC'] > best_model.roc %}
+    {% set best_model.roc = m['ROC-AUC'] %}
+    {% set best_model.name = mname %}
+  {% endif %}
+{% endfor %}
+
+<section>
+  <div class="winner-row">
+    <div>
+      <div class="label">Best ROC-AUC</div>
+      <div class="winner-name">{{ best_model.name }}</div>
+      <div class="winner-score">ROC-AUC = <em>{{ "%.4f"|format(best_model.roc) }}</em> &mdash; highest discriminatory power</div>
+    </div>
+    <div class="winner-tag">Top Performer</div>
+  </div>
+
+  <!-- STAT CARDS -->
+  {% set metric_keys = ['Accuracy', 'F1-Score', 'ROC-AUC', 'PR-AUC'] %}
+  <div class="grid-4">
+    {% for mk in metric_keys %}
+      {% set best_val = namespace(v=0, name='') %}
+      {% for mname, m in metrics.items() %}
+        {% if m[mk] > best_val.v %}
+          {% set best_val.v = m[mk] %}
+          {% set best_val.name = mname %}
+        {% endif %}
+      {% endfor %}
+      <div class="stat-card">
+        <div class="label">Best {{ mk }}</div>
+        <div class="stat-val">{{ "%.3f"|format(best_val.v) }}</div>
+        <div style="font-size:0.8rem; color:var(--dark-grey);">{{ best_val.name }}</div>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- TABLE + PIPELINE -->
+<section>
+  <div class="grid-2" style="align-items:start;">
+
+    <div class="card">
+      <h3>Results Summary</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Accuracy</th>
+            <th>F1-Score</th>
+            <th>ROC-AUC</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for mname, m in metrics.items() %}
+          <tr>
+            <td style="font-weight:500;">{{ mname }}</td>
+            <td class="mono">{{ "%.3f"|format(m['Accuracy']) }}</td>
+            <td class="mono">{{ "%.3f"|format(m['F1-Score']) }}</td>
+            <td class="mono">{{ "%.3f"|format(m['ROC-AUC']) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>ML Pipeline</h3>
+      <div class="pipeline-step">
+        <div class="step-num">01</div>
+        <div><div class="step-title">Dataset</div><div class="step-desc">UCI Adult Income &mdash; 32,561 samples, 14 features, binary target (&le;50K / &gt;50K)</div></div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">02</div>
+        <div><div class="step-title">Preprocessing</div><div class="step-desc">Drop missing values, Label Encoding for categoricals, remove fnlwgt</div></div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">03</div>
+        <div><div class="step-title">Feature Scaling</div><div class="step-desc">StandardScaler applied to LR, SVM, and KNN models</div></div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">04</div>
+        <div><div class="step-title">Training</div><div class="step-desc">80/20 stratified split &mdash; 5 classifiers: LR, DT, RF, SVM, KNN</div></div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">05</div>
+        <div><div class="step-title">Evaluation</div><div class="step-desc">Accuracy, F1-Score, ROC-AUC, PR-AUC, Confusion Matrix</div></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- QUICK LINKS -->
+<section>
+  <h2>Explore</h2>
+  <div class="grid-3">
+    <a href="/metrics" class="quick-link">
+      <div>
+        <div class="quick-link-title">Metrics Comparison</div>
+        <div class="quick-link-desc">Interactive bar charts, radar chart, and heatmap</div>
+      </div>
+      <span class="quick-link-arrow">&rarr;</span>
+    </a>
+    <a href="/plots" class="quick-link">
+      <div>
+        <div class="quick-link-title">Plots Gallery</div>
+        <div class="quick-link-desc">ROC curves, PR curves, confusion matrices</div>
+      </div>
+      <span class="quick-link-arrow">&rarr;</span>
+    </a>
+    <a href="/predict" class="quick-link">
+      <div>
+        <div class="quick-link-title">Live Prediction</div>
+        <div class="quick-link-desc">Predict income using any of the 5 classifiers</div>
+      </div>
+      <span class="quick-link-arrow">&rarr;</span>
+    </a>
+  </div>
+</section>
+
+{% endblock %}
