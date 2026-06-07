@@ -38,9 +38,20 @@ print("  PROJECT B6: Comparative Study of Evaluation Metrics")
 print("=" * 60)
 print("\n[1/5] Loading dataset...")
 
-df = pd.read_csv('data/adult.data')
+df = pd.read_csv('data/adult.csv')
+# Rename columns from adult.csv format to match the app.py standard
+df.rename(columns={
+    'educational-num': 'education_num',
+    'marital-status': 'marital_status',
+    'gender': 'sex',
+    'capital-gain': 'capital_gain',
+    'capital-loss': 'capital_loss',
+    'hours-per-week': 'hours_per_week',
+    'native-country': 'native_country'
+}, inplace=True)
 print(f"  Shape: {df.shape}")
 print(f"  Income distribution:\n{df['income'].value_counts()}")
+
 
 # ─────────────────────────────────────────────
 # 2. DATA PREPROCESSING & CLEANING

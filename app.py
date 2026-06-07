@@ -1,7 +1,3 @@
-# =============================================================================
-# app.py  –  Flask Web Interface for Project B6
-# Run: python app.py   →   open http://127.0.0.1:5000
-# =============================================================================
 
 from flask import Flask, render_template, request, jsonify, send_from_directory
 import joblib
@@ -21,7 +17,6 @@ app = Flask(__name__)
 def favicon():
     return '', 204
 
-# ── Load Artefacts ───────────────────────────────────────────────────────────
 print("Loading saved models and artefacts...")
 scaler         = joblib.load(os.path.join(BASE_DIR, 'models', 'scaler.pkl'))
 label_encoders = joblib.load(os.path.join(BASE_DIR, 'models', 'label_encoders.pkl'))
@@ -42,7 +37,6 @@ METRICS_DATA = metrics_df.to_dict(orient='index')
 print("All artefacts loaded successfully.")
 
 
-# ── Categorical option lists ─────────────────────────────────────────────────
 WORKCLASS_OPTS   = ['Private','Self-emp-not-inc','Self-emp-inc','Federal-gov','Local-gov','State-gov']
 EDUCATION_OPTS   = ['Bachelors','Some-college','HS-grad','Masters','Doctorate','Prof-school','Assoc-acdm','Assoc-voc','11th','12th','10th','9th','5th-6th']
 MARITAL_OPTS     = ['Married-civ-spouse','Divorced','Never-married','Separated','Widowed','Married-spouse-absent']
@@ -53,7 +47,6 @@ SEX_OPTS         = ['Male','Female']
 COUNTRY_OPTS     = ['United-States','Other']
 
 
-# ── Routes ───────────────────────────────────────────────────────────────────
 
 @app.route('/')
 def index():
@@ -183,7 +176,6 @@ def api_metrics():
     return jsonify(METRICS_DATA)
 
 
-# ── Run ──────────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
     print("\n" + "="*55)
     print("  Flask server starting...")
