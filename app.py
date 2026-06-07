@@ -12,27 +12,35 @@ import pandas as pd
 import warnings
 warnings.filterwarnings('ignore')
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 app = Flask(__name__)
+
+# Handle favicon requests gracefully
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
 
 # ── Load Artefacts ───────────────────────────────────────────────────────────
 print("Loading saved models and artefacts...")
-scaler         = joblib.load('models/scaler.pkl')
-label_encoders = joblib.load('models/label_encoders.pkl')
-feature_names  = joblib.load('models/feature_names.pkl')
+scaler         = joblib.load(os.path.join(BASE_DIR, 'models', 'scaler.pkl'))
+label_encoders = joblib.load(os.path.join(BASE_DIR, 'models', 'label_encoders.pkl'))
+feature_names  = joblib.load(os.path.join(BASE_DIR, 'models', 'feature_names.pkl'))
 
 MODELS = {
-    'Logistic Regression': joblib.load('models/logistic_regression.pkl'),
-    'Decision Tree'      : joblib.load('models/decision_tree.pkl'),
-    'Random Forest'      : joblib.load('models/random_forest.pkl'),
-    'SVM'                : joblib.load('models/svm.pkl'),
-    'KNN'                : joblib.load('models/knn.pkl'),
+    'Logistic Regression': joblib.load(os.path.join(BASE_DIR, 'models', 'logistic_regression.pkl')),
+    'Decision Tree'      : joblib.load(os.path.join(BASE_DIR, 'models', 'decision_tree.pkl')),
+    'Random Forest'      : joblib.load(os.path.join(BASE_DIR, 'models', 'random_forest.pkl')),
+    'SVM'                : joblib.load(os.path.join(BASE_DIR, 'models', 'svm.pkl')),
+    'KNN'                : joblib.load(os.path.join(BASE_DIR, 'models', 'knn.pkl')),
 }
 NEEDS_SCALING = {'Logistic Regression', 'SVM', 'KNN'}
 
 # Load metrics summary from CSV
-metrics_df = pd.read_csv('plots/metrics_summary.csv', index_col=0)
+metrics_df = pd.read_csv(os.path.join(BASE_DIR, 'plots', 'metrics_summary.csv'), index_col=0)
 METRICS_DATA = metrics_df.to_dict(orient='index')
 print("All artefacts loaded successfully.")
+
 
 # ── Categorical option lists ─────────────────────────────────────────────────
 WORKCLASS_OPTS   = ['Private','Self-emp-not-inc','Self-emp-inc','Federal-gov','Local-gov','State-gov']
@@ -157,14 +165,16 @@ def metrics_page():
 @app.route('/plots')
 def plots_page():
     """Gallery of all saved matplotlib plots."""
-    plot_files = [f for f in os.listdir('plots') if f.endswith('.png')]
+    plots_dir = os.path.join(BASE_DIR, 'plots')
+    plot_files = [f for f in os.listdir(plots_dir) if f.endswith('.png')]
     return render_template('plots.html', plot_files=plot_files)
 
 
 @app.route('/plots/<filename>')
 def serve_plot(filename):
     """Serve plot images."""
-    return send_from_directory('plots', filename)
+    return send_from_directory(os.path.join(BASE_DIR, 'plots'), filename)
+
 
 
 @app.route('/api/metrics')
